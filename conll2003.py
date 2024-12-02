@@ -40,6 +40,7 @@ _DESCRIPTION = """\
 The shared task of CoNLL-2003 concerns language-independent named entity recognition. We will concentrate on
 four types of named entities: persons, locations, organizations and names of miscellaneous entities that do
 not belong to the previous three groups.
+CoNLL-2003 共享任务涉及语言独立的命名实体识别，重点关注四种类型的命名实体：人名、地点、组织以及不属于前面三类的其他实体。
 
 The CoNLL-2003 shared task data files contain four columns separated by a single space. Each word has been put on
 a separate line and there is an empty line after each sentence. The first item on each line is a word, the second
@@ -48,7 +49,11 @@ and the named entity tags have the format I-TYPE which means that the word is in
 if two phrases of the same type immediately follow each other, the first word of the second phrase will have tag
 B-TYPE to show that it starts a new phrase. A word with tag O is not part of a phrase. Note the dataset uses IOB2
 tagging scheme, whereas the original dataset uses IOB1.
-
+CoNLL-2003 共享任务的数据文件包含四列，以单个空格分隔。每个单词占一行，句子之间有空行。每行的第一个项目是单词，第二个是词性标记（POS），
+第三个是句法块标记，第四个是命名实体标记。
+块标记和命名实体标记采用 I-TYPE 格式，表示该单词位于 TYPE 类型的短语中。
+只有当两个相同类型的短语紧接在一起时，第二个短语的第一个单词会标记为 B-TYPE，以表明它是新短语的开头。标记为 O 的单词不属于任何短语。请注意，
+该数据集使用的是 IOB2 标记方案，而原始数据集使用的是 IOB1。
 For more details see https://www.clips.uantwerpen.be/conll2003/ner/ and https://www.aclweb.org/anthology/W03-0419
 """
 
@@ -190,13 +195,15 @@ class Conll2003(datasets.GeneratorBasedBuilder):
 
     def _split_generators(self, dl_manager):
         """Returns SplitGenerators."""
+        # 下载数据
         downloaded_file = dl_manager.download_and_extract(_URL)
+        # 定义文件路径
         data_files = {
             "train": os.path.join(downloaded_file, _TRAINING_FILE),
             "dev": os.path.join(downloaded_file, _DEV_FILE),
             "test": os.path.join(downloaded_file, _TEST_FILE),
         }
-
+        # 返回
         return [
             datasets.SplitGenerator(name=datasets.Split.TRAIN, gen_kwargs={"filepath": data_files["train"]}),
             datasets.SplitGenerator(name=datasets.Split.VALIDATION, gen_kwargs={"filepath": data_files["dev"]}),
@@ -242,3 +249,10 @@ class Conll2003(datasets.GeneratorBasedBuilder):
                     "chunk_tags": chunk_tags,
                     "ner_tags": ner_tags,
                 }
+
+if __name__ == '__main__':
+    coll = Conll2003()
+    # 初始化下载管理器
+    dl_manager = datasets.DownloadManager()
+    split_generators = coll._split_generators(dl_manager)
+    print("HI")
