@@ -67,6 +67,14 @@ def label2index(label):
 
 class Dataset(Dataset):
     def __init__(self, data, label, labelIndex, tokenizer, maxlength):
+        """
+        :param data: # 输入的原始数据
+        :param label: # 输入的原始数据的标签
+        :param labelIndex: # 标签字典
+        :param tokenizer: # 分类器
+        :param maxlength:# 每个输入序列的最大长度（包括特殊标记）。
+        """
+        super().__init__()
         self.data = data
         self.label = label
         self.labelIndex = labelIndex
@@ -75,7 +83,7 @@ class Dataset(Dataset):
 
     def __getitem__(self, item):
         thisdata = self.data[item]
-        thislabel = self.label[item][:self.maxlength]
+        thislabel = self.label[item][:self.maxlength] # 数组切片，取label[item]前maxlength个元素
         thisdataIndex = self.tokernizer.encode(thisdata, add_special_tokens=True, max_length=self.maxlength + 2,
                                                padding="max_length", truncation=True, return_tensors="pt")
         thislabelIndex = [self.labelIndex['O']] + [self.labelIndex[i] for i in thislabel] + [self.labelIndex['O']] * (
@@ -146,18 +154,18 @@ if __name__ == '__main__':
     # 构建数据集,迭代器
     if hasattr(torch.cuda, 'empty_cache'): # 检查torch.cuda是否有empty_cache，有则清除缓存
         torch.cuda.empty_cache()
-    device = "cuda" if torch.cuda.is_available() else "cpu" # 检查cuda是否可用
+    device = "cuda" if torch.cuda.is_available() else "cpu" # 获取设备GPU，检查cuda是否可用
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased') # 加载 BERT 模型的分词器 bert-base-uncased
     trainDataset = Dataset(trainData, trainLabel, labelIndex, tokenizer, maxlength) # 创建训练数据集
     trainDataloader = DataLoader(trainDataset, batch_size=batchsize, shuffle=False) # 创建训练数据加载器 batch_size 每个批次的样本数量 shuffle=False 不打乱数据顺序
     devDataset = Dataset(devData, devLabel, labelIndex, tokenizer, maxlength) # 创建验证数据集
     devDataloader = DataLoader(devDataset, batch_size=batchsize, shuffle=False) # 创建验证数据集加载器
-
+    trainDataset.__getitem__(5)
     # 建模
-    criterion = nn.CrossEntropyLoss()
-    model = BertModel(len(labelIndex), criterion).to(device)
-    # print(model)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=weight_decay)
+    criterion = nn.CrossEntropyLoss() # 构建损失函数
+    model = BertModel(len(labelIndex), criterion).to(device) # 构建分类模型
+
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=weight_decay) # 随机梯度下降（SGD）优化器
 
     # #绘图准备
     epochPlt = []
@@ -169,21 +177,22 @@ if __name__ == '__main__':
     for e in range(epoch):
         # 训练
         time.sleep(0.1)
-        print(f'epoch:{e + 1}')
+        print(f'epoch:{e + 1}\n')
         epochPlt.append(e + 1)
         epochloss = 0
-        model.train()
+        model.train() # 设置模型为训练模式
+        # 使用 tqdm 进度条显示训练进度，trainDataloader 提供批量数据。
         for batchdata, batchlabel, batchlen in tqdm(trainDataloader, total=len(trainDataloader), leave=False,
                                                     desc="train"):
-            batchdata = batchdata.to(device)
-            batchlabel = batchlabel.to(device)
-            loss = model.forward(batchdata, batchlabel)
-            epochloss += loss
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-        epochloss /= len(trainDataloader)
-        trainLossPlt.append(float(epochloss))
+            batchdata = batchdata.to(device) # 数据迁移至GPU
+            batchlabel = batchlabel.to(device) # 数据迁移至GPU
+            loss = model.forward(batchdata, batchlabel) # 调用模型的 forward 方法，计算当前批次的损失
+            epochloss += loss # 累计损失
+            loss.backward() # 反向传播，计算梯度
+            optimizer.step() # 更新优化器参数参数
+            optimizer.zero_grad() # 清零梯度，下一轮的反向传播做准备
+        epochloss /= len(trainDataloader) # 计算平均损失
+        trainLossPlt.append(float(epochloss)) # 添加epochloss到图形中
         print(f'loss:{epochloss:.5f}')
         # print(batchdata.shape)
         # print(batchlabel.shape)
@@ -194,11 +203,11 @@ if __name__ == '__main__':
         epochpre = []
         model.eval()
         for batchdata, batchlabel, batchlen in tqdm(devDataloader, total=len(devDataloader), leave=False, desc="dev"):
-            batchdata = batchdata.to(device)
-            batchlabel = batchlabel.to(device)
-            pre = model.forward(batchdata)
-            pre = pre.cpu().numpy().tolist()
-            batchlabel = batchlabel.cpu().numpy().tolist()
+            batchdata = batchdata.to(device) # 数据迁移至GPU
+            batchlabel = batchlabel.to(device) # 数据迁移至GPU
+            pre = model.forward(batchdata) # 前向传播
+            pre = pre.cpu().numpy().tolist() # 返回预测结果，转移到CPU并转换为列表
+            batchlabel = batchlabel.cpu().numpy().tolist() # 转移到 CPU 并转换为列表
 
             for b, p, l in zip(batchlabel, pre, batchlen):
                 b = b[1:l + 1]
